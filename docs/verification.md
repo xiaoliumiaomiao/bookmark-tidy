@@ -14,6 +14,7 @@
 | Git 暂存区 / 可达历史密钥扫描 | 通过；检测模式有限 |
 | 独立事务与隐私代码审查 | 最终 spec compliance 通过；quality 批准；确认的问题均有回归验证 |
 | 安装产物 | 16 个运行文件，可加载目录、ZIP、SHA-256 |
+| 首次 GitHub Actions（Ubuntu、Node 22、Playwright 1.62.1） | [运行 38355229165](https://github.com/xiaoliumiaomiao/bookmark-tidy/actions/runs/38355229165) 全部通过 |
 
 命令：`node --test --test-reporter=spec tests/*.test.js`、`node scripts/browser-test.mjs`、`node scripts/check.mjs`、`node scripts/package.mjs`、`node scripts/scan-secrets.mjs --staged`、`node scripts/scan-secrets.mjs --history`。
 

@@ -7,7 +7,7 @@
 - `node scripts/package.mjs` 已实际生成 16 个运行文件的可加载目录、ZIP 和 SHA-256 校验文件；仅复制 extension 运行文件，没有复制测试 profile、备份或开发依赖。重复打包保留旧生成物，无递归删除。
 - ZIP 内部 16 个文件逐项计算 SHA-256，与可加载目录对比，0 项不一致。包含尚未跟踪源文件的显式清单扫描共 43 个文件，0 命中；常规 CLI 默认仍只扫描已跟踪文件。
 - 已提供 pre-commit 暂存扫描和 pre-push 可达历史扫描 hook；是否激活依赖本仓库 `core.hooksPath` 配置，不能仅凭 hook 文件存在宣称生效。
-- 已提供 Ubuntu GitHub CI：安装 Playwright 测试依赖和 Chromium，执行源码/历史扫描、检查、Node 测试、隔离浏览器测试与打包。尚无 remote，因此没有云端运行结果。
+- 已提供 Ubuntu GitHub CI：安装 Playwright 测试依赖和 Chromium，执行源码/历史扫描、检查、Node 测试、隔离浏览器测试与打包。2026-10-13 首次公开推送后，[云端运行 38355229165](https://github.com/xiaoliumiaomiao/bookmark-tidy/actions/runs/38355229165) 实际全部通过。
 - 已读取落盘的 `artifacts/browser-report.json`：独立 profile 上 Chrome 154.0.8037.98 与 Edge 155.0.4283.45 各 6 组实际 API/UI 验证通过，外联请求和页面错误数组为空。报告使用合成书签，不能代替作者真实书签及多设备同步验收。
 
-本地扫描仅覆盖有限模式；GitHub 仓库 Push Protection 尚未开启，详见 [GitHub 状态说明](github-security.md)。
+本地扫描仅覆盖有限模式。2026-10-13 已启用并独立核验 GitHub Secret Scanning 与 Push Protection；详见 [GitHub 状态说明](github-security.md)。

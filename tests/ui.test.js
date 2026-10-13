@@ -65,8 +65,9 @@ test('Chinese workspace implements preview, selection, settings and explicit AI 
     } catch { res.writeHead(404).end(); }
   });
   await new Promise((done) => server.listen(0, '127.0.0.1', done));
-  const browser = await playwright.chromium.launch({ headless: true, ...(executable ? { executablePath: executable } : {}) });
-  t.after(async () => { await browser.close(); await new Promise((done) => server.close(done)); });
+  let browser;
+  t.after(async () => { try { if (browser) await browser.close(); } finally { await new Promise((done) => server.close(done)); } });
+  browser = await playwright.chromium.launch({ headless: true, ...(executable ? { executablePath: executable } : {}) });
   const url = `http://127.0.0.1:${server.address().port}/app.html`;
   const pages = [];
   async function open({ journal = null, denied = false, failApply = false, managed = false } = {}) {

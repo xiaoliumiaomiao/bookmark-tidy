@@ -48,9 +48,11 @@ API Key 仅用于本次请求，不写入插件设置、备份、规则或日志
 
 ## 开发与验证
 
-需要 Node.js 22+、Git；插件运行不需要 Node.js。
+需要 Node.js 22+、Git 和 Playwright 测试依赖；插件运行不需要这些开发工具。首次在新的开发环境中测试时，先安装测试依赖和隔离 Chromium：
 
 ```powershell
+npm install --no-save --package-lock=false playwright@1.62.1
+npx playwright install chromium
 npm test
 npm run check
 npm run scan:secrets
@@ -59,15 +61,15 @@ npm run package
 
 `package` 只交付插件运行文件：可加载目录 `dist/bookmark-tidy-0.1.0/`、ZIP 和 `.sha256` 校验文件。重复打包会保留之前的生成物，不会递归删除目录。Windows 使用已有 PowerShell `Compress-Archive`；其他平台使用 `zip` CLI。
 
-真实浏览器测试可复用已有 Playwright：设置 `PLAYWRIGHT_MODULE_PATH` 为其模块路径后执行 `npm run test:browser`。开发环境也可安装测试依赖：
+测试完核心和页面交互后，运行真实扩展 API 验证：
 
 ```powershell
-npm install --no-save --package-lock=false playwright@1.62.1
-npx playwright install chromium
 npm run test:browser
 ```
 
 测试仅在 `.test-profiles` 下的独立 profile 创建模拟书签，不打开日常浏览器 profile。Windows 优先测试已安装的 Chrome / Edge；其他环境使用 Playwright Chromium，也可设置 `BROWSER_EXECUTABLE`。测试会用 `Extensions.loadUnpacked` 与 `--enable-unsafe-extension-debugging` 加载扩展，该选项只用于隔离测试环境。截图和报告写到忽略的 `artifacts` 目录。
+
+已有 Playwright 时，也可设置 `PLAYWRIGHT_MODULE_PATH` 为其模块路径来复用，无需重复安装。
 
 要在当前仓库启用随项目提供的本地 hook，运行以下可回退配置；它不会改变全局 Git 配置：
 
