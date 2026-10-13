@@ -1,0 +1,13 @@
+node_modules/
+dist/
+artifacts/
+.test-profiles/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*Bookmarks*.json
+*书签备份*.json
+*.log
+.DS_Store
