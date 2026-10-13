@@ -61,9 +61,25 @@ function siteFor(parsed) {
 
 const GENERIC_HOME_TITLES = {
   'GitHub': /^(?:GitHub\s*[·|–—-]\s*(?:Build and ship software|Let[’']s build from here)|GitHub: Let[’']s build from here)$/iu,
+  'ChatGPT': /^ChatGPT\s*[·|–—-]\s*AI\s*对话$/iu,
+  'Notion': /^Notion\s*[·|–—-]\s*工作空间$/iu,
   '腾讯云': /^腾讯云\s*[·|–—-]\s*产业智变\s*云启未来$/u,
   '阿里云': /^阿里云\s*[·|–—-]\s*(?:计算，为了无法计算的价值|云计算服务)$/u,
 };
+
+const BRAND_PREFIX_ALIASES = { MDN: ['MDN Web Docs', 'MDN'] };
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+function compactBrandPrefix(title, name) {
+  for (const alias of BRAND_PREFIX_ALIASES[name] ?? [name]) {
+    const match = title.match(new RegExp(`^${escapeRegex(alias)}\\s*(?:\\||-|–|—|·)\\s*(.+)$`, 'iu'));
+    if (match?.[1].trim()) return `${name}·${match[1].trim()}`;
+  }
+  return title;
+}
 
 function retainValidSuggestion(original, suggestion) {
   // Existing long or empty titles are valid user data; never truncate page topics.
@@ -77,13 +93,12 @@ export function suggestTitle({ title, url }) {
   const site = siteFor(parsed);
   if (!site) return retainValidSuggestion(original, cleaned);
   const name = site[1];
+  const withoutSuffix = cleaned.replace(new RegExp(`\\s+(?:\\||-|–|—|·)\\s*${escapeRegex(name)}$`, 'iu'), '').trim() || cleaned;
   const exactHost = parsed.hostname.toLowerCase() === site[0] || parsed.hostname.toLowerCase() === `www.${site[0]}`;
-  const genericTitle = cleaned.toLowerCase() === name.toLowerCase() || GENERIC_HOME_TITLES[name]?.test(cleaned);
+  const genericTitle = withoutSuffix.toLowerCase() === name.toLowerCase() || GENERIC_HOME_TITLES[name]?.test(withoutSuffix);
   // A product subdomain or customized topic must not be reduced to its parent brand.
   if (exactHost && genericTitle && (parsed.pathname === '/' || parsed.pathname === '') && !parsed.search && !parsed.hash) return name;
-  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  const withoutSuffix = cleaned.replace(new RegExp(`\\s+(?:\\||-|–|—|·)\\s*${escapedName}$`, 'iu'), '').trim();
-  return retainValidSuggestion(original, withoutSuffix || cleaned);
+  return retainValidSuggestion(original, compactBrandPrefix(withoutSuffix, name));
 }
 
 export function categoryCatalog(granularity = 'balanced') {

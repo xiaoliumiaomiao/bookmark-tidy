@@ -63,7 +63,9 @@ export function buildPlan(tree, options = {}) {
   function folderFor(category) {
     if (foldersByCategory.has(category)) return foldersByCategory.get(category);
     const exact = destinationFolders.find((folder) => folder.title.trim().toLowerCase() === category.toLowerCase());
-    const existing = exact ?? destinationFolders.find((folder) => matchesCategoryFolder(folder.title, category));
+    // Full reorganization honors the requested density; incremental additions
+    // prefer stable existing groups even when their labels are broader aliases.
+    const existing = exact ?? (mode === 'incremental' ? destinationFolders.find((folder) => matchesCategoryFolder(folder.title, category)) : undefined);
     const folder = existing
       ? { key: `existing:${existing.id}`, title: existing.title, parentId: existing.parentId, existingId: existing.id }
       : { key: `new:${encodeURIComponent(category)}`, title: category, parentId: scopeId };

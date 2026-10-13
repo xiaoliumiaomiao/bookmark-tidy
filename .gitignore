@@ -8,6 +8,8 @@ artifacts/
 *.pem
 *.key
 *Bookmarks*.json
-*书签备份*.json
+*书签*备份*.json
+*书签*备份*.html
+*书签锁定与规则*.json
 *.log
 .DS_Store

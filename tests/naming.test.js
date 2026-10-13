@@ -77,3 +77,25 @@ test('automatic names preserve long topics instead of suggesting an invalid or t
   assert.equal(suggestTitle({ title: unknownTitle, url: 'https://unknown.example/topic' }), unknownTitle);
   assert.equal(suggestTitle({ title: '  ', url: 'https://unknown.example/topic' }), '  ');
 });
+
+test('known brand prefixes shorten redundant branding while retaining page topics', () => {
+  assert.equal(suggestTitle({ title: 'MDN Web Docs - JavaScript 教程', url: 'https://developer.mozilla.org/zh-CN/docs/Web/JavaScript' }), 'MDN·JavaScript 教程');
+  assert.equal(suggestTitle({ title: 'GitHub - 项目主页', url: 'https://github.com/openai/codex' }), 'GitHub·项目主页');
+  assert.equal(suggestTitle({ title: 'GitHub | 项目安装教程 - GitHub', url: 'https://github.com/openai/codex/blob/main/README.md' }), 'GitHub·项目安装教程');
+});
+
+test('explicit generic home descriptions simplify only exact homepages', () => {
+  assert.equal(suggestTitle({ title: 'ChatGPT - AI 对话', url: 'https://chatgpt.com/' }), 'ChatGPT');
+  assert.equal(suggestTitle({ title: 'Notion - 工作空间', url: 'https://www.notion.so/' }), 'Notion');
+  assert.equal(suggestTitle({ title: 'ChatGPT - AI 对话', url: 'https://chatgpt.com/c/conversation-id' }), 'ChatGPT·AI 对话');
+  assert.equal(suggestTitle({ title: 'Notion - 工作空间', url: 'https://customer.notion.so/' }), 'Notion·工作空间');
+  assert.equal(suggestTitle({ title: 'ChatGPT - 读书计划', url: 'https://chatgpt.com/' }), 'ChatGPT·读书计划');
+  assert.equal(suggestTitle({ title: 'ChatGPT - AI 对话', url: 'https://chatgpt.com/?q=topic#section' }), 'ChatGPT·AI 对话');
+});
+
+test('prefix cleanup never affects unknown domains or truncates long page topics', () => {
+  assert.equal(suggestTitle({ title: 'GitHub - 项目主页', url: 'https://github.com.attacker.example/' }), 'GitHub - 项目主页');
+  const title = `MDN Web Docs - ${'具体文档主题'.repeat(40)}`;
+  assert.equal(suggestTitle({ title, url: 'https://developer.mozilla.org/docs/Web/LongTopic' }), title);
+  assert.equal(suggestTitle({ title: 'GitHub - Education', url: 'https://education.github.com/' }), 'GitHub·Education');
+});

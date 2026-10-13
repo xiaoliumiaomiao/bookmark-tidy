@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "书签归位 · Bookmark Tidy",
+  "version": "0.1.0",
+  "description": "先预览，再整理。完整网址保留，支持本地规则、锁定、备份和撤销。",
+  "permissions": ["bookmarks", "storage"],
+  "optional_host_permissions": ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "打开书签归位", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } },
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'none'; connect-src https: http://localhost:* http://127.0.0.1:*; base-uri 'none'" }
+}

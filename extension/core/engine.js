@@ -34,6 +34,41 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
     }
     return false;
   }
+  function captureOrders(nodes, parents) {
+    return Object.fromEntries([...new Set(parents)].map(parent=>[parent,[...nodes.values()].filter(node=>node.parentId===parent).sort((a,b)=>a.index-b.index).map(node=>node.id)]));
+  }
+  function orderMatches(expected, nodes) {
+    if(!expected) return true;
+    const known=new Set(Object.values(expected).flat());
+    return Object.entries(expected).every(([parent,ids])=>{
+      const actual=[...nodes.values()].filter(node=>node.parentId===parent && known.has(node.id)).sort((a,b)=>a.index-b.index).map(node=>node.id);
+      return JSON.stringify(actual)===JSON.stringify(ids.filter(id=>nodes.has(id)));
+    });
+  }
+  function checkPhaseOrder(journal,nodes) {
+    const allowed=journal.orderProof ? [journal.orderProof.before,journal.orderProof.after] : [journal.expectedOrders];
+    if(!allowed.some(order=>orderMatches(order,nodes))) throw conflict('相关文件夹的书签顺序已被修改');
+  }
+  async function prepareMove(journal,change,parentId,index) {
+    const live=await current();checkPhaseOrder(journal,live.nodes);
+    const source=live.nodes.get(change.id);
+    const parents=[...Object.keys(journal.expectedOrders || {}),source.parentId,parentId];
+    const before=captureOrders(live.nodes,parents);const after=clone(before);
+    after[source.parentId]=after[source.parentId].filter(id=>id!==change.id);
+    const destination=after[parentId];
+    destination.splice(Math.min(index ?? destination.length,destination.length),0,change.id);
+    journal.orderProof={before,after};await persist(journal);
+  }
+  async function finishMove(journal) {
+    const live=await current();
+    if(!orderMatches(journal.orderProof.after,live.nodes)) throw conflict('移动后的顺序发生变化');
+    journal.expectedOrders=journal.orderProof.after;journal.orderProof=null;await persist(journal);
+  }
+  function checkApplyLocation(change,plan,settings,nodes) {
+    const node=nodes.get(change.id);const destination=nodes.get(change.after.parentId);
+    if(!node || !destination || destination.url!==undefined || !isWithin(node.id,plan.scopeId,nodes) || !isWithin(destination.id,plan.scopeId,nodes) || protectedNode(node,nodes,settings) || protectedNode(destination,nodes,settings)) throw conflict('源书签或目标分类已移出范围或受到保护');
+    if(plan.mode==='incremental' && (node.parentId!==plan.scopeId || (destination.id!==plan.scopeId && destination.parentId!==plan.scopeId))) throw conflict('新增整理的范围已变化');
+  }
   function selectItems(plan, edits, nodes, settings) {
     if (!Array.isArray(edits) || edits.length > plan.items.length) throw new Error('预览编辑格式无效');
     const sourceIds = new Set(plan.items.map(item => item.id));
@@ -94,6 +129,7 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
         rename:item.newTitle === item.oldTitle ? 'none' : 'not_started', move:'not_started', restoreTitle:'not_started', restoreMove:'not_started'
       }))
     };
+    journal.expectedOrders=captureOrders(live.nodes,[plan.scopeId,...journal.changes.map(change=>change.before.parentId),...plan.folders.filter(folder=>neededKeys.has(folder.key) && folder.existingId).map(folder=>folder.existingId)]);
     // This snapshot is also available for export after interruption.
     await storage.set({ journal: clone(journal), backup: {version:1,createdAt:journal.createdAt,tree:clone(live.tree)} });
     try {
@@ -103,6 +139,8 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
         folder.id = created.id; destinations.set(folder.key, created.id);
         await persist(journal);
         folder.renamePending = true; await persist(journal);
+        const folderLive=(await current()).nodes;const temporary=folderLive.get(folder.id);
+        if(!temporary || temporary.title!==folder.marker || temporary.parentId!==folder.parentId || protectedNode(temporary,folderLive,settings) || !isWithin(temporary.id,plan.scopeId,folderLive)) throw conflict('新建分类已变化');
         await bookmarks.update(folder.id, {title:folder.title});
         folder.renamed = true; folder.renamePending = false; await persist(journal);
       }
@@ -110,21 +148,32 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
         change.after.parentId = change.targetKey ? destinations.get(change.targetKey) : change.before.parentId;
         change.move = change.after.parentId === change.before.parentId ? 'none' : 'not_started';
       }
+      const ready=await current();checkPhaseOrder(journal,ready.nodes);
+      journal.expectedOrders=captureOrders(ready.nodes,[...Object.keys(journal.expectedOrders),...journal.changes.map(change=>change.after.parentId)]);
       await persist(journal);
       for (const change of journal.changes) {
+        const live=await current();checkPhaseOrder(journal,live.nodes);checkApplyLocation(change,plan,settings,live.nodes);
         const [node] = await bookmarks.get(change.id);
         if (node.url !== change.url || node.title !== change.before.title || node.parentId !== change.before.parentId) throw conflict('应用时书签变化');
         if (change.rename !== 'none') {
           change.rename = 'pending'; await persist(journal);
+          const live=await current();checkPhaseOrder(journal,live.nodes);checkApplyLocation(change,plan,settings,live.nodes);
+          const source=live.nodes.get(change.id);
+          if(source.url!==change.url || source.title!==change.before.title || source.parentId!==change.before.parentId) throw conflict('改名前书签已变化');
           await bookmarks.update(change.id, {title:change.after.title});
           change.rename = 'done'; await persist(journal);
         }
         if (change.move !== 'none') {
+          const live=await current();checkPhaseOrder(journal,live.nodes);checkApplyLocation(change,plan,settings,live.nodes);
           const [renamed] = await bookmarks.get(change.id);
           if (renamed.url !== change.url || renamed.title !== change.after.title || renamed.parentId !== change.before.parentId) throw conflict('移动前书签变化');
           change.move = 'pending'; await persist(journal);
+          await prepareMove(journal,change,change.after.parentId);
+          const fresh=await current();checkPhaseOrder(journal,fresh.nodes);checkApplyLocation(change,plan,settings,fresh.nodes);
+          const source=fresh.nodes.get(change.id);
+          if(source.url!==change.url || source.title!==change.after.title || source.parentId!==change.before.parentId) throw conflict('移动准备后书签已变化');
           await bookmarks.move(change.id, {parentId:change.after.parentId});
-          change.move = 'done'; await persist(journal);
+          change.move = 'done'; await finishMove(journal);
         }
       }
       const after = await current();
@@ -186,14 +235,20 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
     let live = await current();
     // Preflight the entire rollback before writing any bookmark.
     await reconcileFolders(journal, live.nodes);
+    checkPhaseOrder(journal,live.nodes);
     validateUndo(journal, live.nodes, fromHistory);
+    journal.expectedOrders=captureOrders(live.nodes,[...Object.keys(journal.expectedOrders || {}),...journal.changes.flatMap(change=>[change.before.parentId,change.after.parentId])]);journal.orderProof=null;
     journal.status = 'undoing'; await persist(journal);
     try {
       for (const change of journal.changes) {
+        checkPhaseOrder(journal,(await current()).nodes);
         const [node] = await bookmarks.get(change.id);
         if (!allowedValue(change.rename,change.before.title,change.after.title,change.restoreTitle).includes(node.title) || node.url !== change.url || !allowedValue(change.move,change.before.parentId,change.after.parentId,change.restoreMove).includes(node.parentId)) throw conflict('恢复时名称或位置变化');
         if (node.title !== change.before.title) {
           change.restoreTitle = 'pending'; await persist(journal);
+          const live=await current();checkPhaseOrder(journal,live.nodes);
+          const fresh=live.nodes.get(change.id);
+          if(!fresh || fresh.unmodifiable || fresh.url!==change.url || !allowedValue(change.rename,change.before.title,change.after.title,change.restoreTitle).includes(fresh.title) || !allowedValue(change.move,change.before.parentId,change.after.parentId,change.restoreMove).includes(fresh.parentId)) throw conflict('恢复改名前书签变化');
           await bookmarks.update(change.id,{title:change.before.title});
         }
         change.restoreTitle = 'done'; await persist(journal);
@@ -202,11 +257,17 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
       const moved = journal.changes.filter(change => change.move !== 'none' && change.move !== 'not_started');
       moved.sort((a,b)=>a.before.parentId.localeCompare(b.before.parentId) || a.before.index-b.before.index);
       for (const change of moved) {
+        checkPhaseOrder(journal,(await current()).nodes);
         const [node] = await bookmarks.get(change.id);
         if (node.url !== change.url || node.title !== change.before.title || !allowedValue(change.move,change.before.parentId,change.after.parentId,change.restoreMove).includes(node.parentId)) throw conflict('恢复时位置变化');
         if (node.parentId !== change.before.parentId || node.index !== change.before.index) {
           change.restoreMove = 'pending'; await persist(journal);
+          await prepareMove(journal,change,change.before.parentId,change.before.index);
+          const live=await current();checkPhaseOrder(journal,live.nodes);
+          const fresh=live.nodes.get(change.id);const destination=live.nodes.get(change.before.parentId);
+          if(!fresh || fresh.unmodifiable || !destination || destination.unmodifiable || fresh.url!==change.url || fresh.title!==change.before.title || !allowedValue(change.move,change.before.parentId,change.after.parentId,change.restoreMove).includes(fresh.parentId)) throw conflict('恢复移动前书签变化');
           await bookmarks.move(change.id,{parentId:change.before.parentId,index:change.before.index});
+          await finishMove(journal);
         }
         change.restoreMove = 'done'; await persist(journal);
       }
@@ -220,7 +281,12 @@ export function createEngine({ bookmarks, storage, withLock = work => work() }) 
         const children = await bookmarks.getChildren(folder.id);
         if (children.length) { keptFolders++; continue; }
         folder.removing = true; await persist(journal);
+        const live=await current();checkPhaseOrder(journal,live.nodes);
+        const fresh=live.nodes.get(folder.id);
+        if(!fresh || fresh.unmodifiable || fresh.parentId!==folder.parentId || ![folder.title,folder.marker].includes(fresh.title)) throw conflict('清理前分类文件夹变化');
+        if((await bookmarks.getChildren(folder.id)).length) {folder.removing=false;keptFolders++;await persist(journal);continue;}
         await bookmarks.remove(folder.id);
+        journal.expectedOrders=Object.fromEntries(Object.entries(journal.expectedOrders).map(([id,children])=>[id,children.filter(child=>child!==folder.id)]));
         folder.removed = true; await persist(journal);
       }
       live = await current();

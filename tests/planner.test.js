@@ -236,3 +236,61 @@ test('unknown-only previews expose legal existing and built-in destinations with
   assert.equal(result.items[0].selected, false);
   assert.equal(result.stats.move, 0);
 });
+
+test('full many separates AI uses even when bookmarks already occupy a broad AI folder', () => {
+  const tree = [{ id: 'root', title: '', children: [{ id: 'bar', title: '书签栏', folderType: 'bookmarks-bar', children: [
+    { id: 'ai', title: 'AI 工具', children: [
+      { id: 'chat', title: 'ChatGPT', url: 'https://chatgpt.com/' },
+      { id: 'music', title: 'Suno', url: 'https://suno.com/' },
+    ] },
+  ] }] }];
+  const before = structuredClone(tree);
+  const result = plan(tree, { scopeId: 'bar', granularity: 'many' });
+  const referenced = result.items.filter((item) => item.selected).map((item) => result.folders.find((folder) => folder.key === item.targetFolderKey));
+  assert.deepEqual(referenced.map((folder) => folder.title), ['AI 对话', 'AI 创作']);
+  assert.ok(referenced.every((folder) => !folder.existingId));
+  assert.equal(result.stats.move, 2);
+  assert.ok(result.folders.some((folder) => folder.existingId === 'ai'));
+  assert.deepEqual(tree, before);
+});
+
+test('full many reuses exact fine categories instead of broad development aliases', () => {
+  const tree = [{ id: 'root', title: '', children: [{ id: 'bar', title: '书签栏', folderType: 'bookmarks-bar', children: [
+    { id: 'dev', title: '开发工具', children: [
+      { id: 'repo', title: '项目', url: 'https://github.com/acme/p' },
+      { id: 'docs', title: '文档', url: 'https://developer.mozilla.org/docs/Web' },
+    ] },
+    { id: 'exact-docs', title: '开发文档', children: [] },
+  ] }] }];
+  const result = plan(tree, { scopeId: 'bar', granularity: 'many' });
+  const repoTarget = result.folders.find((folder) => folder.key === result.items.find((item) => item.id === 'repo').targetFolderKey);
+  const docsTarget = result.folders.find((folder) => folder.key === result.items.find((item) => item.id === 'docs').targetFolderKey);
+  assert.equal(repoTarget.title, '代码托管');
+  assert.ok(!repoTarget.existingId);
+  assert.equal(docsTarget.existingId, 'exact-docs');
+});
+
+test('incremental many retains broad existing categories for direct newly added bookmarks', () => {
+  const tree = [{ id: 'root', title: '', children: [{ id: 'bar', title: '书签栏', folderType: 'bookmarks-bar', children: [
+    { id: 'ai', title: 'AI 工具', children: [{ id: 'older', title: '原始条目', url: 'https://unknown.example/old' }] },
+    { id: 'chat', title: 'ChatGPT', url: 'https://chatgpt.com/' },
+    { id: 'music', title: 'Suno', url: 'https://suno.com/' },
+  ] }] }];
+  const result = plan(tree, { scopeId: 'bar', mode: 'incremental', granularity: 'many' });
+  assert.deepEqual(result.items.map((item) => item.id), ['chat', 'music']);
+  assert.ok(result.items.every((item) => result.folders.find((folder) => folder.key === item.targetFolderKey).existingId === 'ai'));
+  assert.equal(new Set(result.items.map((item) => item.targetFolderKey)).size, 1);
+});
+
+test('representative browser titles produce four concrete rename suggestions', () => {
+  const tree = [{ id: 'root', title: '', children: [{ id: 'bar', title: '书签栏', folderType: 'bookmarks-bar', children: [
+    { id: 'docs', title: 'MDN Web Docs - JavaScript 教程', url: 'https://developer.mozilla.org/zh-CN/docs/Web/JavaScript' },
+    { id: 'repo', title: 'GitHub - 项目主页', url: 'https://github.com/openai/codex' },
+    { id: 'chat', title: 'ChatGPT - AI 对话', url: 'https://chatgpt.com/' },
+    { id: 'office', title: 'Notion - 工作空间', url: 'https://notion.so/' },
+  ] }] }];
+  const result = plan(tree, { scopeId: 'bar' });
+  assert.equal(result.stats.rename, 4);
+  assert.deepEqual(result.items.map((item) => item.newTitle), ['MDN·JavaScript 教程', 'GitHub·项目主页', 'ChatGPT', 'Notion']);
+  for (const item of result.items) assert.equal(item.url, tree[0].children[0].children.find((node) => node.id === item.id).url);
+});

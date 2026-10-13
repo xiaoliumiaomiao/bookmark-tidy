@@ -19,3 +19,13 @@ test('预览和 inspect 不写入书签；伪造 planId 拒绝',async()=>{
   await assert.rejects(dispatch({command:'apply',planId:'forged',edits:[]}),/预览/);
   assert.equal(env.calls.length,0);
 });
+test('AI成功响应回显密钥被后台拒绝，任何持久化状态均不含该密钥',async()=>{
+  const env=fakeEnvironment();const dispatch=mod.createController({...env,permissions:{contains:async()=>true}});
+  const plan=await dispatch({command:'preview',options:{scopeId:'1',mode:'incremental',granularity:'balanced'}});
+  const synthetic='synthetic-'+'integration-credential';const originalFetch=globalThis.fetch;
+  globalThis.fetch=async()=>({ok:true,text:async()=>JSON.stringify({choices:[{message:{content:JSON.stringify([{id:plan.items[0].id,title:synthetic}])}}]})});
+  try {
+    await assert.rejects(dispatch({command:'aiSuggestions',planId:plan.id,endpoint:'https://example.com/chat',model:'test',apiKey:synthetic,confirmed:true}),/敏感|凭据/u);
+    assert.ok(!JSON.stringify(env.values).includes(synthetic));assert.equal(env.calls.length,0);
+  } finally {globalThis.fetch=originalFetch;}
+});

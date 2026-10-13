@@ -80,3 +80,58 @@ test('复用既有深层长名称文件夹，不修改该文件夹名称', async
   assert.equal(env.find('10').title,'专题'.repeat(110));
   assert.ok(env.calls.every(call=>call.method!=='create'));
 });
+test('移动尚未执行就中断，之后用户排序时恢复应停止而不是覆盖顺序',async()=>{
+  const {env,engine,plan}=await setup();env.failNext('move');
+  await assert.rejects(engine.apply(plan,[],settings));
+  await env.bookmarks.move('a',{parentId:'10',index:2});
+  const snapshot=await env.bookmarks.getTree();
+  await assert.rejects(engineModule.createEngine(env).recover(),/顺序|冲突/u);
+  assert.deepEqual(await env.bookmarks.getTree(),snapshot);
+});
+test('撤销移动响应丢失后用户排序，恢复不能重新覆盖用户排序',async()=>{
+  const {env,engine,plan}=await setup();await engine.apply(plan,[],settings);
+  env.failNext('move',true);await assert.rejects(engine.undo());
+  await env.bookmarks.move('a',{parentId:'10',index:1});
+  const snapshot=await env.bookmarks.getTree();
+  await assert.rejects(engineModule.createEngine(env).recover(),/顺序|冲突/u);
+  assert.deepEqual(await env.bookmarks.getTree(),snapshot);
+});
+test('应用开始后目的分类移出范围，不得把书签移到范围外',async()=>{
+  const {env,engine,plan,fingerprint}=await setup();
+  const node=env.find('d');plan.items=[{id:'d',url:node.url,oldTitle:node.title,newTitle:node.title,oldParentId:node.parentId,oldIndex:node.index,targetFolderKey:'dev',selected:true}];
+  plan.folders=[{key:'dev',title:'旧开发',parentId:'1',existingId:'10'}];
+  plan.sourceFingerprint=fingerprint(await env.bookmarks.getTree());
+  const save=env.storage.set;let once=true;
+  env.storage.set=async data=>{await save(data);if(data.backup && once){once=false;await env.bookmarks.move('10',{parentId:'2'});}};
+  await assert.rejects(engine.apply(plan,[],settings),/范围|冲突|顺序/u);
+  assert.equal(env.find('d').parentId,'1');
+});
+test('整理新增允许保留当前位置而只改名称',async()=>{
+  const {env,engine,plan}=await setup();const n=env.find('d');
+  plan.mode='incremental';plan.folders=[];
+  plan.items=[{id:n.id,url:n.url,oldTitle:n.title,newTitle:'ChatGPT',oldParentId:n.parentId,oldIndex:n.index,targetFolderKey:null,selected:true}];
+  await engine.apply(plan,[],settings);
+  assert.equal(env.find('d').title,'ChatGPT');assert.equal(env.find('d').parentId,'1');
+  await engine.undo();assert.equal(env.find('d').title,n.title);
+});
+test('记录移动准备阶段时嵌套目的地漂移，最终写前检查应拒绝',async()=>{
+  const {env,engine,plan,fingerprint}=await setup();
+  const destination=await env.bookmarks.create({parentId:'10',title:'开发工具'});
+  const n=env.find('d');plan.items=[{id:n.id,url:n.url,oldTitle:n.title,newTitle:n.title,oldParentId:n.parentId,oldIndex:n.index,targetFolderKey:'dev',selected:true}];
+  plan.folders=[{key:'dev',title:destination.title,parentId:'10',existingId:destination.id}];plan.sourceFingerprint=fingerprint(await env.bookmarks.getTree());
+  const save=env.storage.set;let once=true;
+  env.storage.set=async data=>{await save(data);if(once && data.journal?.orderProof && data.journal.changes[0].move==='pending'){once=false;await env.bookmarks.move(destination.id,{parentId:'2'});}};
+  await assert.rejects(engine.apply(plan,[],settings),/范围|冲突/u);assert.equal(env.find('d').parentId,'1');
+});
+test('记录改名准备阶段时用户改名，不能覆盖后来的名称',async()=>{
+  const {env,engine,plan}=await setup();const save=env.storage.set;let once=true;
+  env.storage.set=async data=>{await save(data);if(once && data.journal?.changes[0].rename==='pending'){once=false;env.find('a').title='后来的人工名称';}};
+  await assert.rejects(engine.apply(plan,[],settings),/冲突|名称|变化/u);assert.equal(env.find('a').title,'后来的人工名称');
+});
+test('清理新建空目录准备阶段用户改名，不删除用户后来保留的目录',async()=>{
+  const {env,engine,plan}=await setup();await engine.apply(plan,[],settings);
+  const folderId=env.find('a').parentId;const save=env.storage.set;let once=true;
+  env.storage.set=async data=>{await save(data);if(once && data.journal?.createdFolders.some(folder=>folder.removing)){once=false;env.find(folderId).title='用户后来保留的目录';}};
+  await assert.rejects(engine.undo(),/冲突|分类|变化/u);
+  assert.equal(env.find(folderId).title,'用户后来保留的目录');
+});

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>书签归位 · 整理工作区</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">跳到整理预览</a>
+  <header class="app-header">
+    <div class="brand">
+      <svg class="brand-mark" width="32" height="36" viewBox="0 0 32 36" aria-hidden="true"><path d="M6 3h20v30l-10-6-10 6z" fill="#183c74"/><path d="M11 11h10M11 16h10M11 21h6" fill="none" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      <div><h1>书签归位</h1><p>整理名称和目录，完整网址始终保留</p></div>
+    </div>
+    <div class="header-actions"><span class="local-label">默认本地处理</span><button id="backup-button" type="button" title="JSON 原始数据。优先导出最近一次整理前的备份；没有整理备份时导出当前书签。">导出完整备份</button><button id="backup-html-button" type="button" title="优先导出最近一次整理前的备份；没有整理备份时导出当前书签。浏览器可导入 HTML；导入会新增条目，恢复名称和目录结构，不替换原书签，不保留原 ID 和日期。">导出可导入备份</button><button id="undo-button" type="button" disabled>撤销上次整理</button></div>
+  </header>
+  <div id="notice" class="notice" role="status" aria-live="polite">正在读取书签…</div>
+  <div id="recovery-banner" class="recovery-banner" role="alert" hidden><div><strong>有一项整理尚未完成</strong><p>先撤回未完成操作，再生成新的预览。遇到后续人工修改时会停止，保护当前书签。</p></div><button id="recover-button" type="button">恢复并撤回未完成操作</button></div>
+  <div class="layout">
+    <aside class="sidebar" aria-label="范围、书签树和锁定">
+      <section class="scope-controls">
+        <h2>整理范围</h2>
+        <label for="scope">浏览器书签目录</label><select id="scope" disabled><option value="">读取中…</option></select>
+        <fieldset id="mode-controls"><legend>整理方式</legend><label class="radio-line"><input type="radio" name="mode" value="full" checked>整理整体<span>包括所选目录的子文件夹</span></label><label class="radio-line"><input type="radio" name="mode" value="incremental">整理新增<span>仅处理所选目录下直接放置的书签</span></label></fieldset>
+        <label for="granularity">分类粗细</label><select id="granularity"><option value="few">少量分类 · 更集中</option><option value="balanced" selected>适量分类 · 均衡</option><option value="many">细分分类 · 更具体</option></select>
+        <button id="preview-button" class="primary wide" type="button" disabled>生成整理预览</button>
+        <p class="hint">生成预览只读取书签，不修改浏览器。锁定的内容和管理员管理的内容会跳过。</p>
+      </section>
+      <section class="tree-section">
+        <div class="section-title"><h2>全部书签与锁定</h2><span id="lock-count" class="count">0 项锁定</span></div>
+        <label class="visually-hidden" for="tree-search">搜索全部书签和目录</label><input id="tree-search" type="search" placeholder="搜索标题、网址或目录" autocomplete="off">
+        <p class="hint">锁定网址保护所有同网址书签；锁定目录保护整个子树。</p>
+        <div id="tree-list" class="tree-list" aria-label="书签树"></div>
+        <p id="tree-count" class="hint"></p>
+        <div id="locks-summary" class="locks-summary"></div>
+        <button id="save-settings" type="button" class="wide" disabled>保存锁定与规则</button>
+        <p id="settings-dirty" class="hint" hidden>设置有未保存的修改。保存后再生成预览。</p>
+      </section>
+    </aside>
+    <main id="workspace" tabindex="-1">
+      <div class="workspace-heading"><div><h2>整理预览</h2><p id="plan-caption">选择范围，生成预览后逐项确认</p></div><span id="plan-state" class="state-label">尚未生成</span></div>
+      <section id="plan-summary" class="plan-summary" aria-label="整理统计" hidden></section>
+      <div id="category-overview" class="category-overview" aria-label="分类概览" hidden></div>
+      <div id="empty-state" class="empty-state"><svg width="60" height="56" viewBox="0 0 60 56" aria-hidden="true"><path d="M5 13h20l5 6h25v30H5z" fill="#edf2f8" stroke="#a6b8ce" stroke-width="1.5"/><path d="M12 28h35M12 36h25" stroke="#a6b8ce" stroke-width="2" stroke-linecap="round"/></svg><h3>先看建议，再决定如何整理</h3><p>左侧选择整理范围，点击「生成整理预览」。<br>预览里可以修改名称、选择目录，或取消任意条目。</p></div>
+      <section id="preview-workspace" hidden aria-label="可编辑的整理建议">
+        <div class="table-toolbar"><label><input id="select-all" type="checkbox">选中可见条目</label><span id="selection-count"></span><label for="item-search" class="visually-hidden">筛选预览条目</label><input id="item-search" type="search" placeholder="筛选预览标题或网址" autocomplete="off"></div>
+        <div class="table-scroll"><table class="preview-table"><thead><tr><th class="select-col" scope="col">选择</th><th scope="col">整理前</th><th scope="col">整理后名称</th><th scope="col">目标目录</th><th scope="col">确认依据</th></tr></thead><tbody id="preview-rows"></tbody></table></div>
+        <p id="review-hint" class="review-hint" hidden>标为「待确认」的条目已选中，请检查名称和归类。目标目录为「保留当前位置」时，只会按你的选择修改名称。</p>
+        <div class="apply-bar"><div><label><input id="remember" type="checkbox">保存我的选择，下次按同网址复用</label><p>应用前会自动保存备份；修改名称和目录，不删除书签。</p></div><button id="apply-button" class="primary" type="button" disabled>应用选中项</button></div>
+      </section>
+      <details id="rules-panel" class="detail-panel"><summary>本地自定义规则 <span>按域名或关键词归类</span></summary><div class="detail-content"><p class="hint">规则只影响下次生成的预览。域名示例：github.com；关键词示例：课程。规则和锁定设置保存在本机。</p><div class="rule-header"><span>匹配方式</span><span>匹配内容</span><span>分类名称</span></div><div id="rules-list"></div><div class="panel-actions"><button id="add-rule" type="button">添加规则</button><button id="export-rules" type="button">导出锁定与规则</button><button id="import-rules" type="button">导入锁定与规则</button><input id="rules-file" type="file" accept="application/json,.json" hidden></div><p class="hint">导入后先检查内容，再点击左侧「保存锁定与规则」。导出不包含 AI 密钥。</p></div></details>
+      <details id="ai-panel" class="detail-panel"><summary>可选 AI 建议 <span>主动确认后才联网</span></summary><div class="detail-content"><p>本地建议已经可以整理。需要 AI 辅助时，可连接兼容 Chat Completions 的服务；由服务商按其条款处理发送数据。</p><div class="ai-fields"><label for="ai-endpoint">完整 Chat Completions 地址<input id="ai-endpoint" type="url" placeholder="https://api.example.com/v1/chat/completions" autocomplete="off" spellcheck="false"></label><label for="ai-model">模型名称<input id="ai-model" type="text" placeholder="服务商提供的模型名称" autocomplete="off" spellcheck="false"></label><label for="ai-key">API Key（可选，仅本次使用）<input id="ai-key" type="password" placeholder="本机服务可留空；请求后清空" autocomplete="off" spellcheck="false"></label></div><p class="hint">仅支持 HTTPS 或本机 localhost / 127.0.0.1 的 HTTP 服务。浏览器会询问该服务域名的网络权限。</p><h3>本次将发送的数据</h3><p class="hint">仅包含书签 ID、原始标题、域名。不发送完整网址、路径、查询参数或书签树。未生成预览时没有可发送数据。</p><pre id="ai-payload" aria-label="发送数据预览">[]</pre><label class="consent-line"><input id="ai-confirm" type="checkbox">我已检查上方数据，同意发送到填写的服务</label><button id="ai-request" type="button" disabled>请求 AI 建议</button><p class="hint">AI 返回后仍是预览；需要你再次检查并点击「应用选中项」。密钥不会存入设置、备份或日志。</p></div></details>
+      <footer>书签归位 · 本地优先 <span>如果浏览器同步或人工编辑改变了书签，请重新生成预览。</span></footer>
+    </main>
+  </div>
+</body>
+</html>

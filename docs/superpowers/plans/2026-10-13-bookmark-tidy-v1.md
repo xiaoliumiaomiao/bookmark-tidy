@@ -43,34 +43,34 @@ inspect data: `{tree,settings,state:{journal,history},plan}`. preview input opti
 ## Task 1: 本地规则与安全建议
 
 Files: extension/core/{tree,naming,settings,planner}.js; tests/{planner,naming,settings}.test.js.
-- [ ] Write tests covering URL preservation, direct-child incremental scope, nested lock, immutable tree, coarse/fine categories, unknowns and human overrides; run `node --test tests/planner.test.js tests/naming.test.js tests/settings.test.js`, observe missing functionality.
-- [ ] Implement exact interfaces above; run same tests, all pass.
-- [ ] Review coverage and commit exact files.
+- [x] Write tests covering URL preservation, direct-child incremental scope, nested lock, immutable tree, coarse/fine categories, unknowns and human overrides; run `node --test tests/planner.test.js tests/naming.test.js tests/settings.test.js`, observe missing functionality.
+- [x] Implement exact interfaces above; run same tests, all pass.
+- [x] Review coverage and commit exact files.
 
 ## Task 2: 事务引擎与 AI 边界
 
 Files: extension/core/{engine,ai}.js; extension/background.js; tests/{engine,ai}.test.js.
-- [ ] Use an in-memory bookmark tree adapter to test apply, URL equality, stale plan, interrupted persistence, undo order, conflict preservation; observe failing tests before engine implementation.
-- [ ] Implement journal before each side effect, after each side effect record progress; rollback only nodes the journal proves are owned by this operation. Never remove existing bookmark/folder.
-- [ ] AI request only HTTPS or loopback HTTP endpoint, titles/domain preview, no complete URLs/key persistence, strict suggestion validation; test malformed response and injection-shaped data.
-- [ ] Run Node tests and inspect runtime permission manifest.
+- [x] Use an in-memory bookmark tree adapter to test apply, URL equality, stale plan, interrupted persistence, undo order, conflict preservation; observe failing tests before engine implementation.
+- [x] Implement journal before each side effect, after each side effect record progress; rollback only nodes the journal proves are owned by this operation. Never remove existing bookmark/folder.
+- [x] AI request only HTTPS or loopback HTTP endpoint, titles/domain preview, no complete URLs/key persistence, strict suggestion validation; test malformed response and injection-shaped data.
+- [x] Run Node tests and inspect runtime permission manifest.
 
 ## Task 3: 中文整理界面
 
 Files: extension/{manifest.json,app.html,app.js,styles.css,icons/*}; tests/ui.test.js.
-- [ ] Write static contracts / browser acceptance harness for visible preview, scope/mode controls, editable items, lock/settings, backup/undo and AI data confirmation.
-- [ ] Build full-page workspace: folder sidebar, quiet white/light-slate surface, deep blue action, Chinese system sans; category preview and editable before/after rows are the main visual focus. No external assets.
-- [ ] Integrate authoritative background API; enforce busy state; invalidate plan on scope/settings changes; distinguish pending recovery and completed operation.
-- [ ] Capture desktop and narrow screenshots; inspect keyboard focus, overflow, empty/error states.
+- [x] Write static contracts / browser acceptance harness for visible preview, scope/mode controls, editable items, lock/settings, backup/undo and AI data confirmation.
+- [x] Build full-page workspace: folder sidebar, quiet white/light-slate surface, deep blue action, Chinese system sans; category preview and editable before/after rows are the main visual focus. No external assets.
+- [x] Integrate authoritative background API; enforce busy state; invalidate plan on scope/settings changes; distinguish pending recovery and completed operation.
+- [x] Capture desktop and narrow screenshots; inspect keyboard focus, overflow, empty/error states.
 
 ## Task 4: 交付、Git 与密钥保护
 
 Files: README.md, LICENSE, SECURITY.md, scripts/{check,package,browser-test,scan-secrets}.mjs, .github/workflows/ci.yml.
-- [ ] Add local source/commit secret scan and GitHub CI; GitHub repository push protection must be enabled and independently read back if remote exists and entitlement permits.
-- [ ] Build packaged directory/zip with source manifest and hashes, excluding tests/profiles/bookmark backups/secrets.
-- [ ] Actual Chrome/Edge isolated API: full apply/undo; incremental leaves nested entries untouched; URLs identical, duplicate URLs retained, locks respected; local mode no external requests.
-- [ ] Independent code review, fix significant findings and rerun affected tests.
-- [ ] Save factual verification report, commit reviewed source, deliver loadable folder and install instructions. No release/GitHub public publication without specified visibility.
+- [x] Add local source/commit secret scan and GitHub CI. Repository push protection remains pending: no GitHub remote or visibility has been specified. Enable and independently verify after that user decision.
+- [x] Build packaged directory/zip with source manifest and hashes, excluding tests/profiles/bookmark backups/secrets.
+- [x] Actual Chrome/Edge isolated API: full apply/undo; incremental leaves nested entries untouched; URLs identical, duplicate URLs retained, locks respected; local mode no external requests.
+- [x] Independent code review, fix significant findings and rerun affected tests.
+- [x] Save factual verification report, commit reviewed source, deliver loadable folder and install instructions. No release/GitHub public publication without specified visibility.
 
 ## Progress
 
