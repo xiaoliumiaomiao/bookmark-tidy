@@ -79,6 +79,8 @@ git config --local core.hooksPath .githooks
 
 ## 当前验证边界
 
-隔离测试报告见 `artifacts/browser-report.json`；测试使用合成书签。自动测试覆盖网址保留、重复保留、锁定、增量范围、冲突、应用及撤销。真实书签的分类、命名偏好和多设备同步行为仍由作者验收。GitHub CI 文件已提供，远端未配置时没有云端 CI 运行或仓库级 Push Protection 的成功证据。
+隔离测试报告见 `artifacts/browser-report.json`；测试使用合成书签。自动测试覆盖网址保留、重复保留、锁定、增量范围、冲突、应用及撤销。真实书签的分类、命名偏好和多设备同步行为仍由作者验收。
+
+公开仓库：[xiaoliumiaomiao/bookmark-tidy](https://github.com/xiaoliumiaomiao/bookmark-tidy)。GitHub Secret Scanning 和 Push Protection 已启用并独立核验；当前云端验证状态以 [GitHub Actions](https://github.com/xiaoliumiaomiao/bookmark-tidy/actions) 的实际运行记录为准。
 
 MIT License，Copyright © 2026 xiaoliumiaomiao。

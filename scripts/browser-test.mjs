@@ -28,7 +28,7 @@ for(const target of targets) {
   const result={name:target.name,tests:[],externalRequests:[],pageErrors:[]};
   try {
     context=await playwright.chromium.launchPersistentContext(profile,{
-      headless:true,executablePath:target.path,
+      headless:true,...(target.path ? {executablePath:target.path} : {channel:'chromium'}),
       ignoreDefaultArgs:['--disable-extensions'],
       args:['--enable-unsafe-extension-debugging','--disable-background-networking'],
       viewport:{width:1440,height:1000}

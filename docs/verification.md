@@ -38,4 +38,4 @@
 
 尚未使用用户真实书签验证分类是否符合个人偏好，未验证浏览器账户的多设备同步效果。AI 传输和返回校验使用模拟服务验证，未向真实云端供应商发送书签或提供真实密钥。第一版保留原有空文件夹，没有任意 JSON 快照的全量恢复入口；HTML 导入会追加书签。
 
-本地 Git hooks 通过仓库级 `core.hooksPath=.githooks` 激活；这不是 GitHub 服务端拦截。当前没有 GitHub remote，仓库级 Push Protection 仍待用户指定目标和可见性后启用并核验。说明见 [github-security.md](github-security.md)。
+本地 Git hooks 通过仓库级 `core.hooksPath=.githooks` 激活。2026-10-13 经用户授权创建公开 GitHub 仓库，首次推送前已启用并通过独立 API 核验 Secret Scanning 与 Push Protection 均为 enabled。说明见 [github-security.md](github-security.md)。

@@ -66,7 +66,7 @@ Files: extension/{manifest.json,app.html,app.js,styles.css,icons/*}; tests/ui.te
 ## Task 4: 交付、Git 与密钥保护
 
 Files: README.md, LICENSE, SECURITY.md, scripts/{check,package,browser-test,scan-secrets}.mjs, .github/workflows/ci.yml.
-- [x] Add local source/commit secret scan and GitHub CI. Repository push protection remains pending: no GitHub remote or visibility has been specified. Enable and independently verify after that user decision.
+- [x] Add local source/commit secret scan and GitHub CI. User authorized public repository xiaoliumiaomiao/bookmark-tidy; Secret Scanning and Push Protection were enabled and independently verified before the first source push.
 - [x] Build packaged directory/zip with source manifest and hashes, excluding tests/profiles/bookmark backups/secrets.
 - [x] Actual Chrome/Edge isolated API: full apply/undo; incremental leaves nested entries untouched; URLs identical, duplicate URLs retained, locks respected; local mode no external requests.
 - [x] Independent code review, fix significant findings and rerun affected tests.

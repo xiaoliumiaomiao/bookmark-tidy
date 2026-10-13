@@ -1,6 +1,15 @@
 # GitHub 密钥拦截状态
 
-2026-10-13 检查：本地仓库尚未关联 GitHub remote，因此**尚未开启或核验 GitHub 仓库级 Secret Scanning / Push Protection**。项目未自行公开发布。本地 hook、扫描通过、Git 初始化和 CI 配置文件均不能代替服务端保护状态。
+2026-10-13：经用户明确授权，已创建公开仓库 [xiaoliumiaomiao/bookmark-tidy](https://github.com/xiaoliumiaomiao/bookmark-tidy)，并在首次推送源码前开启 GitHub 仓库级保护。独立 GET API 核验得到：
+
+| 设置 | 实际状态 |
+| --- | --- |
+| visibility | public |
+| secret_scanning | enabled |
+| secret_scanning_push_protection | enabled |
+| 当前账户仓库管理权限 | admin: true |
+
+本地 `origin` 指向该仓库。本地 hook 和 CI 是补充防护，不代替上述服务端设置。该记录不包含凭据值。
 
 GitHub CLI 已安装，账户认证的只读 API 验证成功。本项目说明不保存凭证值。
 
@@ -13,27 +22,27 @@ GitHub CLI 已安装，账户认证的只读 API 验证成功。本项目说明�
 
 依据：[当前支持范围](https://docs.github.com/en/code-security/reference/secret-security/secret-scanning-scope)、[Public 免费支持](https://github.blog/changelog/2023-05-09-secret-scannings-push-protection-is-available-on-public-repositories-for-free/)、[保护类型](https://docs.github.com/en/code-security/concepts/secret-security/push-protection)。
 
-## 确定目标远端后的操作
+## 复核与维护
 
-仓库所有者、仓库名和可见性尚未指定。需要用户明确这些信息；不能为了取得免费保护而擅自公开源码。先核验目标仓库权限和授权条件，再对该仓库进行以下操作。
+用户已指定仓库及公开可见性。以下命令可以重新核验；更换远端或可见性时，应重新检查仓库权限和产品授权条件。
 
-下面的 `OWNER/REPO` 是待替换的目标，命令不需要在文件里保存密钥：
+命令不需要在文件里保存密钥：
 
 ```powershell
-gh api --method GET repos/OWNER/REPO --jq '{visibility: .visibility, permissions: .permissions, security_and_analysis: .security_and_analysis}'
+gh api --method GET repos/xiaoliumiaomiao/bookmark-tidy --jq '{visibility: .visibility, permissions: .permissions, security_and_analysis: .security_and_analysis}'
 ```
 
 满足条件后开启密钥扫描及推送拦截：
 
 ```powershell
 '{"security_and_analysis":{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}}' |
-  gh api --method PATCH repos/OWNER/REPO --input - --jq '.security_and_analysis'
+  gh api --method PATCH repos/xiaoliumiaomiao/bookmark-tidy --input - --jq '.security_and_analysis'
 ```
 
 必须再次独立读取确认两个 `status` 都是 `enabled`：
 
 ```powershell
-gh api --method GET repos/OWNER/REPO --jq '.security_and_analysis | {secret_scanning, secret_scanning_push_protection}'
+gh api --method GET repos/xiaoliumiaomiao/bookmark-tidy --jq '.security_and_analysis | {secret_scanning, secret_scanning_push_protection}'
 ```
 
 若字段不可见、返回失败或授权条件不足，应如实记录未启用，不把请求发出视为成功。[官方 REST API 参数与权限](https://docs.github.com/en/rest/repos/repos#update-a-repository)、[仓库启用说明](https://docs.github.com/en/code-security/how-tos/secure-your-secrets/prevent-future-leaks/enable-push-protection)。
